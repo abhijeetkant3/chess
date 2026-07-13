@@ -10,6 +10,15 @@ export const setupSockets = (io) => {
 
         // 1. Join a match room
         socket.on('join-game', async ({ gameId, user }) => {
+            // --- SAFETY NET START ---
+            if (!user) {
+                console.log(`[Safety Net] Blocked a crash: Socket ${socket.id} tried to join ${gameId} without a user object.`);
+                return; // Stop execution before it crashes the server!
+            }
+            // Safely get the ID (works with both MongoDB _id or frontend id)
+            const safeUserId = user._id || user.id;
+            // --- SAFETY NET END ---
+
             socket.join(gameId);
             
             // If the game isn't in memory yet, initialize it
@@ -24,12 +33,13 @@ export const setupSockets = (io) => {
             const game = activeGames.get(gameId);
 
             // Dynamically assign White or Black colors based on who joins first
-            const exists = game.players.find(p => p.userId === user.id);
+            // *Updated to use safeUserId*
+            const exists = game.players.find(p => p.userId === safeUserId);
             if (!exists && game.players.length < 2) {
                 const color = game.players.length === 0 ? 'w' : 'b';
                 game.players.push({
-                    userId: user.id,
-                    username: user.username,
+                    userId: safeUserId, // *Updated to use safeUserId*
+                    username: user.username || 'Unknown Player',
                     socketId: socket.id,
                     color
                 });
