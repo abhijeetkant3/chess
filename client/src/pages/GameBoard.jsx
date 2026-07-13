@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
@@ -25,9 +25,11 @@ export default function GameBoard() {
         disconnectSocket 
     } = useGameStore();
 
-    // Get current user safely
-    const storedUser = localStorage.getItem('chess_user');
-    const user = storedUser ? JSON.parse(storedUser) : null;
+   // This forces React to only read the user once when the page loads, not every millisecond.
+    const user = useMemo(() => {
+        const storedUser = localStorage.getItem('chess_user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    }, []);
 
     useEffect(() => {
         if (!user) {
@@ -58,9 +60,13 @@ export default function GameBoard() {
 
         // Cleanup when leaving the page
         return () => {
-            socket.off('game-state');
-            socket.off('receive-move');
-            disconnectSocket();
+            if (socket) {
+                socket.off('game-state');
+                socket.off('receive-move');
+            }
+            if (typeof disconnectSocket === 'function') {
+                disconnectSocket();
+            }
         };
         // Added missing dependencies to satisfy eslint(react-hooks/exhaustive-deps)
     }, [gameId, socket, connectSocket, joinGame, setPlayers, updateBoard, disconnectSocket, navigate, user]);
